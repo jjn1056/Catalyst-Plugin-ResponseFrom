@@ -4,6 +4,11 @@ Catalyst::Plugin::ResponseFrom - Use the response of a public endpoint.
 
 # SYNOPSIS
 
+    package MyApp;
+    use Catalyst 'ResponseFrom';
+
+    MyApp->setup;
+
     package MyApp::Controller::Example;
 
     use Moose;

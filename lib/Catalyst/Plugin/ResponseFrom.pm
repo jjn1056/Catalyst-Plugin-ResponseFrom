@@ -80,6 +80,11 @@ Catalyst::Plugin::ResponseFrom - Use the response of a public endpoint.
 
 =head1 SYNOPSIS
 
+    package MyApp;
+    use Catalyst 'ResponseFrom';
+
+    MyApp->setup;
+
     package MyApp::Controller::Example;
 
     use Moose;
