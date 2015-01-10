@@ -84,6 +84,7 @@ Catalyst::Plugin::ResponseFrom - Use the response of a public endpoint.
 
     use Moose;
     use MooseX::MethodAttributes;
+    use HTTP::Request::Common;
 
     extends 'Catalyst::Controller';
 
@@ -94,7 +95,7 @@ Catalyst::Plugin::ResponseFrom - Use the response of a public endpoint.
 
     sub as_spec :Local {
       my ($self, $c) = @_;
-      $c->redispatch_to(GET => $c->uri_for($self->action_for('target')));
+      $c->redispatch_to('GET' => $c->uri_for($self->action_for('target')));
     }
 
     sub collect_response :Local {
@@ -128,9 +129,9 @@ This plugin adds the following methods to your L<Catalyst> application.  All met
 share the same function signature (this approach and following documentation 'borrowed'
 from L<Web::Simple>):
 
-  my $psgi_response = $app->http_response_from(GET => '/' => %headers);
-  my $http_response = $app->http_response_from(POST => '/' => %headers_or_form);
-  $c->redispatch_to($http_request);
+    my $psgi_response = $app->http_response_from(GET => '/' => %headers);
+    my $http_response = $app->http_response_from(POST => '/' => %headers_or_form);
+    $c->redispatch_to($http_request);
  
 Accepts either an L<HTTP::Request> object or ($method, $path) and runs that
 request against the application, returning an L<HTTP::Response> object.
@@ -143,27 +144,27 @@ provided by L<HTTP::Request::Common>.
 If you prefix the URL with 'user:pass@' this will be converted into
 an Authorization header for HTTP basic auth:
  
-  my $res = $app->http_response_from(
-              GET => 'bob:secret@/protected/resource'
-            );
- 
+    my $res = $app->http_response_from(
+                GET => 'bob:secret@/protected/resource'
+              );
+   
 If pairs are passed where the key ends in :, it is instead treated as a
 headers, so:
  
-  my $res = $app->http_response_from(
-              POST => '/',
-             'Accept:' => 'text/html',
-              some_form_key => 'value'
-            );
+    my $res = $app->http_response_from(
+                POST => '/',
+               'Accept:' => 'text/html',
+                some_form_key => 'value'
+              );
  
 will do what you expect. You can also pass a special key of Content: to
 set the request body:
  
-  my $res = $app->psgi_response_from(
-              POST => '/',
-              'Content-Type:' => 'text/json',
-              'Content:' => '{ "json": "here" }',
-            );
+    my $res = $app->psgi_response_from(
+                POST => '/',
+                'Content-Type:' => 'text/json',
+                'Content:' => '{ "json": "here" }',
+              );
  
 =head2 psgi_response_from
 
@@ -184,7 +185,8 @@ Returns the L<HTTP::Response> object returned by the request.
 
 Uses the response giveing to the request and uses that to complete your
 response.  This also detaches so that calling this method effectively
-ends processing.
+ends processing.  Basically use this when you decide you want the response
+to be that of a totally different URL on your application.
 
 =head1 AUTHOR
 
