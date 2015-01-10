@@ -7,7 +7,7 @@ use MIME::Base64 ();
 use HTTP::Request ();
 use Scalar::Util ();
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 requires 'psgi_app', 'res', 'detach';
 
