@@ -7,14 +7,21 @@ use MIME::Base64 ();
 use HTTP::Request ();
 use Scalar::Util ();
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 requires 'psgi_app', 'res', 'detach';
 
 ## Block of code gratuitously stolen from Web::Simple::Application
 my $_request_spec_to_http_request = sub {
-  my ($method, $path, @rest) = @_;
- 
+  my ($self, $method, $path, @rest) = @_;
+
+  # if the first arg is a catalyst action, build a URL
+  if(Scalar::Util::blessed $method and $method->isa('Catalyst::Action')) {
+    $path = $self->uri_for($method, @_[2..$#_]);
+    $method = 'GET';
+    @rest = ();
+  }
+
   # if it's a reference, assume a request object
   return $method if(Scalar::Util::blessed $method and $method->isa('HTTP::Request'));
  
@@ -54,22 +61,24 @@ my $_request_spec_to_http_request = sub {
 };
 
 sub psgi_response_from {
-  my $app = shift;
-  my $http_request = $_request_spec_to_http_request->(@_);
+  my $self = shift;
+  my $http_request = $self->$_request_spec_to_http_request(@_);
   my $psgi_env = HTTP::Message::PSGI::req_to_psgi($http_request);
-  return my $psgi_response = $app->psgi_app->($psgi_env);
+  return my $psgi_response = $self->psgi_app->($psgi_env);
 }
 
 *response_from = \&http_response_from;
 sub http_response_from {
-  my $psgi_response = (my $app = shift)->psgi_response_from(@_);
+  my $self = shift;
+  my $psgi_response = $self->psgi_response_from(@_);
   return my $http_response = HTTP::Message::PSGI::res_from_psgi($psgi_response);
 }
 
 sub redispatch_to {
-  my $psgi_response = (my $c =shift)->psgi_response_from(@_);
-  $c->res->from_psgi_response($psgi_response);
-  $c->detach;
+  my $self = shift;
+  my $psgi_response = $self->psgi_response_from(@_);
+  $self->res->from_psgi_response($psgi_response);
+  $self->detach;
 }
 
 1;
@@ -96,6 +105,8 @@ Catalyst::Plugin::ResponseFrom - Use the response of a public endpoint.
     sub as_http_request :Local {
       my ($self, $c) = @_;
       $c->redispatch_to(GET $c->uri_for($self->action_for('target')));
+      # For simple GETs you can just use $c->uri_for style params like:
+      $c->redispatch_to($self->action_for('target'));
     }
 
     sub as_spec :Local {
@@ -137,10 +148,19 @@ from L<Web::Simple>):
     my $psgi_response = $app->http_response_from(GET => '/' => %headers);
     my $http_response = $app->http_response_from(POST => '/' => %headers_or_form);
     $c->redispatch_to($http_request);
- 
-Accepts either an L<HTTP::Request> object or ($method, $path) and runs that
-request against the application, returning an L<HTTP::Response> object.
- 
+
+Accept three style of arguments:
+
+=over4
+
+=item  An L<HTTP::Request> object
+
+Runs this against the application as if running from a client such as a browser
+
+=item Parameters ($method, $path) 
+
+A single domain specific language used to construct an L<HTTP::Request> object.
+
 If the HTTP method is POST or PUT, then a series of pairs can be passed after
 this to create a form style message body. If you need to test an upload, then
 create an L<HTTP::Request> object by hand or use the C<POST> subroutine
@@ -165,11 +185,18 @@ headers, so:
 will do what you expect. You can also pass a special key of Content: to
 set the request body:
  
-    my $res = $app->psgi_response_from(
+    my $res = $app->http_response_from(
                 POST => '/',
                 'Content-Type:' => 'text/json',
                 'Content:' => '{ "json": "here" }',
               );
+
+=item a L<Catalyst::Action> instance + optional parameters
+
+If the arguments are identical to $c->uri_for, we create a request for that
+action and assume the method is 'GET'.
+
+=back
  
 =head2 psgi_response_from
 
